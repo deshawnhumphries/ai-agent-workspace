@@ -1,11 +1,13 @@
 'use client';
 
-import { Bot, Sparkles, Code, FileText, Zap, Layout } from 'lucide-react';
+import { Sparkles, Code, FileText, Zap, Layout } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import type { AgentConfig } from '@/types/agents';
 
 interface EmptyStateProps {
   onSendMessage: (message: string) => void;
   onSuggestionClick: (prompt: string) => void;
+  selectedAgent: AgentConfig;
 }
 
 const suggestedPrompts = [
@@ -47,7 +49,8 @@ const suggestedPrompts = [
   },
 ];
 
-export function EmptyState({ onSendMessage, onSuggestionClick }: EmptyStateProps) {
+export function EmptyState({ onSendMessage, onSuggestionClick, selectedAgent }: EmptyStateProps) {
+  const AgentIcon = selectedAgent.icon;
   return (
     <div className="flex-1 flex flex-col overflow-y-auto">
       <div className="flex-1 flex flex-col items-center justify-center p-6">
@@ -55,9 +58,12 @@ export function EmptyState({ onSendMessage, onSuggestionClick }: EmptyStateProps
           {/* Logo and Welcome */}
           <div className="space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
-              <Bot className="h-8 w-8 text-primary-foreground" />
+              <AgentIcon className="h-8 w-8 text-primary-foreground" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">How can I help you today?</h1>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-primary">{selectedAgent.name}</p>
+              <h1 className="text-3xl font-bold tracking-tight">How can I help you today?</h1>
+            </div>
             <p className="text-muted-foreground max-w-md mx-auto">
               Ask me anything about coding, writing, research, or planning. I&apos;m here to help you build faster.
             </p>

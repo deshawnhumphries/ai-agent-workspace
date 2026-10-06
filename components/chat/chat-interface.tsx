@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth/auth-provider';
 import { useChat } from '@/hooks/use-chat';
 import { useConversations } from '@/hooks/use-conversations';
+import { useAgent } from '@/hooks/use-agent';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ConversationSidebar } from '@/components/chat/conversation-sidebar';
 import { ChatWindow } from '@/components/chat/chat-window';
@@ -52,6 +53,13 @@ export default function ChatInterface() {
     scrollToBottom,
     activeConversationId,
   } = useChat({ conversationId: urlConversationId });
+
+  const {
+    selectedAgentId,
+    selectedAgent,
+    selectAgent,
+    agents,
+  } = useAgent();
 
   useEffect(() => {
     scrollToBottom();
@@ -218,6 +226,9 @@ export default function ChatInterface() {
             messagesEndRef={messagesEndRef}
             conversationTitle={activeConversation?.title}
             conversationModel={activeConversation?.model}
+            selectedAgent={selectedAgent}
+            agents={agents}
+            onSelectAgent={selectAgent}
           />
         </div>
       </div>

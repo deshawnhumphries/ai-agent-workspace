@@ -6,10 +6,12 @@ import { ChatInput } from '@/components/chat/chat-input';
 import { MessageBubble } from '@/components/chat/message-bubble';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { EmptyState } from '@/components/chat/empty-state';
+import { AgentSelector } from '@/components/chat/agent-selector';
 import { Button } from '@/components/ui/button';
 import { MessageListSkeleton } from '@/components/chat/conversation-skeleton';
 import { ConversationEmptyState } from '@/components/chat/conversation-empty-state';
 import type { ChatMessage } from '@/types/chat';
+import type { AgentConfig, AgentId } from '@/types/agents';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -27,6 +29,9 @@ interface ChatWindowProps {
   messagesEndRef: RefObject<HTMLDivElement>;
   conversationTitle?: string;
   conversationModel?: string;
+  selectedAgent: AgentConfig;
+  agents: AgentConfig[];
+  onSelectAgent: (id: AgentId) => void;
 }
 
 export function ChatWindow({
@@ -45,6 +50,9 @@ export function ChatWindow({
   messagesEndRef,
   conversationTitle,
   conversationModel,
+  selectedAgent,
+  agents,
+  onSelectAgent,
 }: ChatWindowProps) {
   const hasMessages = messages.length > 0;
 
@@ -93,7 +101,10 @@ export function ChatWindow({
   if (!hasMessages && !isLoading && !error) {
     return (
       <div className="flex-1 flex flex-col min-w-0">
-        <EmptyState onSendMessage={onSendMessage} onSuggestionClick={onSuggestionClick} />
+        <div className="flex items-center justify-center pt-4">
+          <AgentSelector agents={agents} selectedAgent={selectedAgent} onSelect={onSelectAgent} />
+        </div>
+        <EmptyState onSendMessage={onSendMessage} onSuggestionClick={onSuggestionClick} selectedAgent={selectedAgent} />
         <div className="border-t bg-background/80 backdrop-blur-sm p-4 md:p-6">
           <div className="max-w-3xl mx-auto">
             <ChatInput
@@ -134,9 +145,12 @@ export function ChatWindow({
             </div>
           </div>
         </div>
-        <Button onClick={onNewChat} variant="ghost" size="sm">
-          New Chat
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <AgentSelector agents={agents} selectedAgent={selectedAgent} onSelect={onSelectAgent} />
+          <Button onClick={onNewChat} variant="ghost" size="sm" className="hidden sm:inline-flex">
+            New Chat
+          </Button>
+        </div>
       </header>
 
       {/* Messages */}
