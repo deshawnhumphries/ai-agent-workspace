@@ -3,10 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import type { ChatMessage } from '@/types/chat';
+import type { AgentId } from '@/types/agents';
 
 interface UseChatOptions {
   api?: string;
   conversationId?: string | null;
+  agentId?: AgentId;
 }
 
 interface ChatState {
@@ -32,7 +34,7 @@ function generateId() {
 }
 
 export function useChat(options: UseChatOptions = {}): ChatState {
-  const { api = '/api/chat', conversationId = null } = options;
+  const { api = '/api/chat', conversationId = null, agentId } = options;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -51,6 +53,11 @@ export function useChat(options: UseChatOptions = {}): ChatState {
   const locallyCreatedRef = useRef<Set<string>>(new Set());
   // Stores the last failed prompt for retry
   const lastFailedPromptRef = useRef<string | null>(null);
+  const agentIdRef = useRef<AgentId | undefined>(agentId);
+
+  useEffect(() => {
+    agentIdRef.current = agentId;
+  }, [agentId]);
 
   useEffect(() => {
     conversationIdRef.current = conversationId;
@@ -171,6 +178,7 @@ export function useChat(options: UseChatOptions = {}): ChatState {
           body: JSON.stringify({
             messages: historyForApi,
             conversationId: conversationIdRef.current,
+            agentId: agentIdRef.current,
           }),
           signal: abortControllerRef.current.signal,
         });

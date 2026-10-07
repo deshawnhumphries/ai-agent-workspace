@@ -38,6 +38,13 @@ export default function ChatInterface() {
   } = useConversations();
 
   const {
+    selectedAgentId,
+    selectedAgent,
+    selectAgent,
+    agents,
+  } = useAgent();
+
+  const {
     messages,
     messagesEndRef,
     input,
@@ -52,14 +59,7 @@ export default function ChatInterface() {
     stop,
     scrollToBottom,
     activeConversationId,
-  } = useChat({ conversationId: urlConversationId });
-
-  const {
-    selectedAgentId,
-    selectedAgent,
-    selectAgent,
-    agents,
-  } = useAgent();
+  } = useChat({ conversationId: urlConversationId, agentId: selectedAgentId });
 
   useEffect(() => {
     scrollToBottom();

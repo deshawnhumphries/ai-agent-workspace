@@ -1,14 +1,22 @@
-import { streamText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 import { createClient } from '@/lib/supabase/server';
 import { ConversationService } from '@/lib/database/conversation-service';
-import { systemPrompt } from '@/lib/ai/prompts';
+import { AgentRuntime } from '@/lib/agents/runtime';
+import { DEFAULT_AGENT_ID } from '@/lib/agents/registry';
+import type { AgentId } from '@/types/agents';
+import type { AgentMessage } from '@/lib/agents/types';
 
 export const maxDuration = 60;
 
 interface ChatRequestBody {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   conversationId?: string;
+  agentId?: string;
+}
+
+const runtime = new AgentRuntime();
+
+function isAgentId(value: string): value is AgentId {
+  return value === 'research' || value === 'writing' || value === 'planning';
 }
 
 export async function POST(req: Request) {
@@ -33,20 +41,12 @@ export async function POST(req: Request) {
       });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      console.error('OPENAI_API_KEY is not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI service is not configured.' }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    // Resolve agent ID — validate against the typed union, fall back to default
+    const agentId: AgentId = body.agentId && isAgentId(body.agentId) ? body.agentId : DEFAULT_AGENT_ID;
 
     const service = new ConversationService(supabase);
 
     // Resolve or create a conversation, and persist the latest user message.
-    // The client always sends the full message history; we only persist the
-    // newest user message (the last entry) to avoid duplicates.
     let resolvedConversationId = conversationId;
     const lastMessage = messages[messages.length - 1];
 
@@ -71,25 +71,52 @@ export async function POST(req: Request) {
       }
     }
 
-    const openai = createOpenAI({ apiKey });
+    const agentMessages: AgentMessage[] = messages.map(m => ({
+      role: m.role as AgentMessage['role'],
+      content: m.content,
+    }));
 
-    const result = streamText({
-      model: openai('gpt-4o-mini'),
-      system: systemPrompt,
-      messages,
+    const result = await runtime.execute({
+      agentId,
+      messages: agentMessages,
+      conversationId: resolvedConversationId,
+      userId: user.id,
+      model: 'gpt-4o-mini',
       temperature: 0.7,
-      onFinish: async ({ text }) => {
+      onFinish: async (text) => {
         if (resolvedConversationId && text) {
           await service.addMessage(resolvedConversationId, 'assistant', text);
         }
       },
     });
 
-    return result.toTextStreamResponse({
-      headers: resolvedConversationId
-        ? { 'X-Conversation-Id': resolvedConversationId }
-        : undefined,
-    });
+    if ('error' in result) {
+      const { error } = result;
+      if (error.message.includes('rate limit')) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      if (error.message.includes('context_length')) {
+        return new Response(
+          JSON.stringify({ error: 'Message too long. Please start a new conversation.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: error.message }),
+        { status: error.status, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const headers: Record<string, string> = {};
+    if (resolvedConversationId) {
+      headers['X-Conversation-Id'] = resolvedConversationId;
+    }
+    headers['X-Agent-Id'] = result.agentId;
+
+    return new Response(result.stream, { headers });
   } catch (error) {
     console.error('Chat API error:', error);
 
